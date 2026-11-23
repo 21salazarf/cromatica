@@ -283,5 +283,6 @@
   window.Sonido = {
     reproducir, detener, posicion, renderizar,  aWav, prepararSamples,
     get sinSamples() { return [...sinSamples]; },
+    get estadoAudio() { return ctx ? ctx.state : "sin crear"; },
   };
 })();

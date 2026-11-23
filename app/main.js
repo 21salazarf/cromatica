@@ -495,7 +495,11 @@
     alertaEstado("Cargando instrumentos…");
     sonando = comp;
     await Sonido.reproducir(audible(comp), desde);
-    alertaEstado(Sonido.sinSamples.length ? "No se pudieron cargar los instrumentos: suena un sintetizador de respaldo." : "");
+    if (Sonido.estadoAudio !== "running") {
+      alertaEstado(`El navegador no dejó arrancar el audio (estado: ${Sonido.estadoAudio}). Toca Reproducir otra vez.`);
+    } else {
+      alertaEstado(Sonido.sinSamples.length ? "No se pudieron cargar los instrumentos: suena un sintetizador de respaldo." : "");
+    }
     cancelAnimationFrame(animacion);
     const cuadro = () => {
       const p = Sonido.posicion();
