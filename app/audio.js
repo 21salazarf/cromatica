@@ -171,8 +171,40 @@
 
   let actual = null; // { grafo, fuentes, t0, desde }
 
+  // --- iPhone: interruptor de silencio ---------------------------------------
+  // En iOS, Safari calla todo Web Audio si el interruptor lateral está en
+  // silencio. Un <audio> HTML sí suena en silencio, y mientras uno está activo
+  // la página entera pasa a la categoría "reproducción". Por eso, al oprimir
+  // Reproducir, se pide esa categoría (Safari 16.4+) y, por si acaso, se pone a
+  // sonar en bucle un audio mudo mientras suena la pieza.
+  let mudo = null;
+  function silencioWav() {
+    const sr = 8000, n = sr / 2, datos = new DataView(new ArrayBuffer(44 + n * 2));
+    const txt = (o, s) => { for (let i = 0; i < s.length; i++) datos.setUint8(o + i, s.charCodeAt(i)); };
+    txt(0, "RIFF"); datos.setUint32(4, 36 + n * 2, true); txt(8, "WAVE"); txt(12, "fmt ");
+    datos.setUint32(16, 16, true); datos.setUint16(20, 1, true); datos.setUint16(22, 1, true);
+    datos.setUint32(24, sr, true); datos.setUint32(28, sr * 2, true); datos.setUint16(32, 2, true);
+    datos.setUint16(34, 16, true); txt(36, "data"); datos.setUint32(40, n * 2, true);
+    return URL.createObjectURL(new Blob([datos], { type: "audio/wav" }));
+  }
+  function activarSesion() {
+    try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) { /* no soportado */ }
+    try {
+      if (!mudo) {
+        mudo = document.createElement("audio");
+        mudo.setAttribute("playsinline", "");
+        mudo.setAttribute("x-webkit-airplay", "deny");
+        mudo.loop = true;
+        mudo.src = silencioWav();
+      }
+      const p = mudo.play();
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) { /* sin <audio>: se sigue igual */ }
+  }
+
   async function reproducir(comp, desde = 0) {
     detener();
+    activarSesion(); // tiene que ir antes de cualquier await: debe ocurrir dentro del toque
     const c = contexto();
     await c.resume();
     await prepararSamples(comp);
@@ -187,6 +219,7 @@
   }
 
   function detener() {
+    if (mudo) mudo.pause();
     if (!actual) return;
     const { grafo, fuentes } = actual;
     const c = contexto();
