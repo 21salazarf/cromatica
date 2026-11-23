@@ -335,6 +335,18 @@
     roll.fijar(estado.comp, silenciadas());
     if (Sonido.posicion() === null) roll.posicion(posicionPausa > estado.comp.duracion ? 0 : posicionPausa);
     actualizarTiempo(Sonido.posicion() ?? posicionPausa);
+    precargar();
+  }
+
+  // Descarga los instrumentos apenas hay una composición, sin esperar a que se
+  // oprima Reproducir. Espera a que el slider se quede quieto para no bajar
+  // los sonidos de cada tono intermedio (importa con datos móviles).
+  let temporizadorPrecarga = null;
+  function precargar() {
+    clearTimeout(temporizadorPrecarga);
+    temporizadorPrecarga = setTimeout(() => {
+      if (estado.comp) Sonido.prepararSamples(audible(estado.comp)).catch(() => {});
+    }, 400);
   }
 
   // --- Colores de la página: salen de las fotos ---------------------------------
