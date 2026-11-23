@@ -555,11 +555,11 @@
 
   $("mid").addEventListener("click", () => {
     if (!estado.comp) return;
-    const titulo = estado.fotos.length > 1 ? "retrato sonoro: armonia" : `retrato sonoro: ${estado.fotos[0].nombre}`;
+    const titulo = estado.fotos.length > 1 ? "Cromática: armonía" : `Cromática: ${estado.fotos[0].nombre}`;
     descargar(window.Midi.exportarMidi(audible(estado.comp), titulo), `${nombreArchivo()}.mid`);
     alertaEstado("MIDI descargado.");
   });
 
   // Para pruebas desde la consola
-  window.RetratoSonoro = { estado, recomponer, alMoverTono, quitarFoto, alternarSilencio, complementarFoto };
+  window.Cromatica = { estado, recomponer, alMoverTono, quitarFoto, alternarSilencio, complementarFoto };
 })();

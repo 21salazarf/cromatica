@@ -1,4 +1,4 @@
-# Retrato sonoro
+# Cromática
 
 Proyecto del curso **Arte y Ciencia**, con Ryoji Ikeda como caso de estudio. La página toma una foto a color y la convierte en música. El color, el tono y la luz de la foto deciden cómo suena.
 
@@ -37,6 +37,7 @@ Con el botón **Agregar otra foto**, o eligiendo varias de una vez, se suman has
 - **Un papel por foto con color, cada uno en su registro:** melodía (agudo, nota a nota), contramelodía (medio, una nota cada dos filas) y bajo con acordes (grave, cada cuatro filas). Con dos fotos con color, los papeles son melodía y bajo con acordes.
 - **Cada foto conserva sus instrumentos y su carácter:** sus colores eligen los instrumentos, y si es cálida toca cortado y si es fría, ligado.
 - **Una foto sin color** no vota en la tonalidad: aporta un pulso de senos agudos afinados y clics. Si ninguna foto tiene color, se forman capas de senos separadas por octavas.
+- **Complementar** aparece en la tarjeta de la contramelodía y gira su tono hasta el color opuesto (180°) al de la melodía. Así cambia de familia de instrumentos y de ritmo, y se distingue mejor, igual que dos colores complementarios se refuerzan en la pintura.
 - **Silenciar** apaga una foto del audio y de las descargas, sin cambiar la tonalidad.
 - **El MIDI** trae una pista por foto e instrumento.
 

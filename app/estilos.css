@@ -1,5 +1,5 @@
 /*
- * Retrato sonoro — un estudio de color a la manera de Josef Albers.
+ * Cromática — un estudio de color a la manera de Josef Albers.
  * Fondo gris neutro (el que se usa para juzgar color sin que el entorno lo
  * altere). El acento de la página no es fijo: sale de la foto (--tono) y
  * cambia con el slider.
@@ -81,7 +81,7 @@ h1 {
   font-size: clamp(76px, 12.5vw, 168px);
   line-height: 0.84;
   letter-spacing: -0.025em;
-  max-width: 6ch;
+  max-width: none;
 }
 .entrada { font-size: 21px; line-height: 1.5; max-width: 34ch; margin: 36px 0 0; }
 .credito { color: var(--grafito); font-size: 15px; margin: 18px 0 0; max-width: 46ch; }

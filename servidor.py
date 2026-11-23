@@ -1,5 +1,5 @@
 """
-Abre Retrato sonoro en el navegador.
+Abre Cromática en el navegador.
 
 Uso (desde la carpeta del proyecto):
     python servidor.py
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     servidor, puerto = abrir_servidor()
     url = f"http://{HOST}:{puerto}/"
     print()
-    print(f"  Retrato sonoro está corriendo en  {url}")
+    print(f"  Cromática está corriendo en  {url}")
     print("  Si el navegador no se abre solo, copia esa dirección.")
     print("  Deja esta terminal abierta. Para detenerlo: Ctrl+C")
     print()
