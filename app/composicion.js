@@ -100,6 +100,60 @@
   }
 
   // ---------------------------------------------------------------------------
+  // SUAVIZADO: "suavizamos el dato lo mínimo para que se pueda escuchar".
+  // El brillo sigue decidiendo hacia dónde va la melodía, pero:
+  //  1. salta como máximo una quinta por nota (llega a lo alto en varios pasos);
+  //  2. las filas se agrupan en frases de 8: la última nota de cada frase cae en
+  //     una nota del acorde de la tónica (cada 16 filas, en la tónica misma) y dura más;
+  //  3. el instrumento se mantiene al menos 4 filas antes de cambiar de color;
+  //  4. los tiempos fuertes suenan un poco más que los débiles.
+  const FRASE = 8;
+  const MIN_FILAS_INST = 4;
+
+  function suavizador(escala, cada) {
+    const L = escala.length;
+    const maxSalto = L >= 7 ? 4 : 3; // una quinta, en grados de la escala
+    // grados del acorde de la tónica: tónica, tercera (menor o mayor) y quinta
+    const delAcorde = escala.map((s, k) => ([0, 3, 4, 7].includes(s) ? k : -1)).filter((k) => k >= 0);
+    let previo = null, midiPrevio = null, instActual = null, desdeCambio = 0;
+
+    function cercano(g, permitidos) {
+      for (let d = 0; d <= L; d++) {
+        for (const c of [g - d, g + d]) if (c >= 0 && permitidos.includes(c % L)) return c;
+      }
+      return g;
+    }
+
+    return {
+      /** grado final de la nota de la fila i, a partir del que pide el brillo */
+      grado(objetivo, i) {
+        let g = previo === null ? objetivo : previo + limitar(objetivo - previo, -maxSalto, maxSalto);
+        const finFrase = (i + cada) % FRASE === 0, finPeriodo = (i + cada) % (2 * FRASE) === 0;
+        if (finPeriodo) g = cercano(g, [0]);
+        else if (finFrase) g = cercano(g, delAcorde);
+        previo = g;
+        return { g, cadencia: finFrase };
+      },
+      /** evita saltos de octava al cambiar de instrumento: acerca la nota a la anterior */
+      octava(m, lo, hi) {
+        if (midiPrevio !== null) {
+          while (m - midiPrevio > 7 && m - 12 >= lo) m -= 12;
+          while (midiPrevio - m > 7 && m + 12 <= hi) m += 12;
+        }
+        midiPrevio = m;
+        return m;
+      },
+      /** el instrumento solo cambia si el anterior ya sonó al menos MIN_FILAS_INST filas */
+      instrumento(clave) {
+        if (instActual === null || (clave !== instActual && desdeCambio >= MIN_FILAS_INST)) { instActual = clave; desdeCambio = 0; }
+        desdeCambio += cada;
+        return instActual;
+      },
+      acento: (i) => (cada > 1 ? 1 : i % 2 === 0 ? 1.08 : 0.88),
+    };
+  }
+
+  // ---------------------------------------------------------------------------
   function componerAcromatico(a) {
     const paso = 0.16;
     const notas = [];
@@ -173,23 +227,27 @@
     const audibles = luces.filter((_, i) => suena(a.filas[i]));
     const lMin = Math.min(...audibles), lMax = Math.max(...audibles);
     const estirar = (l) => (lMax - lMin > 0.05 ? (l - lMin) / (lMax - lMin) : l);
+    const suave = suavizador(escala, 1);
 
     a.filas.forEach((f, i) => {
       const t = i * paso;
       if (!suena(f)) { anterior = null; silencios++; return; } // fila plana y gris: silencio
 
-      const clave = f.intensidad < 0.1 ? "piano" : familiaDe(f.matiz).instrumento;
+      const clave = suave.instrumento(f.intensidad < 0.1 ? "piano" : familiaDe(f.matiz).instrumento);
       const inst = INSTRUMENTOS[clave];
       // tónica dentro del registro del instrumento
       let base = inst.lo + 2;
       while (((base % 12) + 12) % 12 !== tonica) base++;
 
-      const grado = Math.round(estirar(luces[i]) * 2 * L); // 0..2 octavas de la escala
-      const midiDe = (g) => plegar(base + 12 * Math.floor(g / L) + escala[g % L], inst.lo, inst.hi);
-      const vel = limitar((48 + f.contraste * 180 + f.croma * 40) / 127, 0.25, 0.95);
-      const dur = Math.min(2.9, paso * articulacion);
+      // el brillo pide un grado (0..2 octavas de la escala); el suavizado limita el salto
+      const { g: grado, cadencia } = suave.grado(Math.round(estirar(luces[i]) * 2 * L), i);
+      const midiCrudo = (g) => plegar(base + 12 * Math.floor(g / L) + escala[g % L], inst.lo, inst.hi);
+      const principal = suave.octava(midiCrudo(grado), inst.lo, inst.hi);
+      const corrimiento = principal - midiCrudo(grado);
+      const midiDe = (g) => plegar(midiCrudo(g) + corrimiento, inst.lo, inst.hi);
+      const vel = limitar(((48 + f.contraste * 180 + f.croma * 40) / 127) * suave.acento(i), 0.25, 0.95);
+      const dur = Math.min(2.9, paso * (cadencia ? Math.max(articulacion, 1.8) : articulacion));
 
-      const principal = midiDe(grado);
       filasPorInst[clave] = (filasPorInst[clave] || 0) + 1;
       // En lo frío, si la nota se repite con el mismo instrumento, se alarga en vez de repetirse
       if (W < 0 && anterior && anterior.inst === clave && anterior.midi === principal) {
@@ -360,6 +418,7 @@
       const lMin = aud.length ? Math.min(...aud) : 0, lMax = aud.length ? Math.max(...aud) : 1;
       const estirar = (l) => (lMax - lMin > 0.05 ? (l - lMin) / (lMax - lMin) : l);
       const vel0 = papel === "melodía" ? 1 : 0.85;
+      const suave = suavizador(escala, cada);
       let anterior = null;
 
       for (let i = 0; i < a.filas.length; i += cada) {
@@ -371,11 +430,13 @@
         const viva = filas.reduce((m, f) => (f.intensidad > m.intensidad ? f : m), filas[0]);
         const croma = prom("croma"), contraste = prom("contraste");
 
-        const clave = viva.intensidad < 0.1 ? "piano" : familiaDe(viva.matiz).instrumento;
+        const clave = suave.instrumento(viva.intensidad < 0.1 ? "piano" : familiaDe(viva.matiz).instrumento);
         const inst = INSTRUMENTOS[clave];
         const [lo, hi] = ventana(papel, inst);
         const base = tonicaEn(lo, tonica);
-        const midiDe = (g) => plegar(base + 12 * Math.floor(g / L) + escala[g % L], lo, hi);
+        const midiCrudo = (g) => plegar(base + 12 * Math.floor(g / L) + escala[g % L], lo, hi);
+        let midiDe = midiCrudo;
+        let cadencia = false;
 
         let grados;
         if (papel === "bajo con acordes") {
@@ -384,15 +445,21 @@
           if (croma > 0.15) grados.push(g + 2);
           if (croma > 0.3) grados.push(g + 4);
         } else {
-          const g = Math.round(estirar(luz) * 2 * L);
+          const r = suave.grado(Math.round(estirar(luz) * 2 * L), i);
+          const g = r.g;
+          cadencia = r.cadencia;
+          const m = suave.octava(midiCrudo(g), lo, hi);
+          const corrimiento = m - midiCrudo(g);
+          midiDe = (x) => plegar(midiCrudo(x) + corrimiento, lo, hi);
           grados = [g];
           if (papel === "melodía" && croma > 0.22) grados.push(g + 2);
           if (papel === "melodía" && croma > 0.4) grados.push(g + 4);
         }
 
         const t = i * paso;
-        const dur = Math.min(2.9, paso * cada * (papel === "melodía" ? articulacion : Math.max(0.95, articulacion * 0.9)));
-        const vel = limitar((48 + contraste * 180 + croma * 40) / 127, 0.25, 0.95) * vel0;
+        const art = papel === "melodía" ? articulacion : Math.max(0.95, articulacion * 0.9);
+        const dur = Math.min(2.9, paso * cada * (cadencia ? Math.max(art, 1.8) : art));
+        const vel = limitar(((48 + contraste * 180 + croma * 40) / 127) * suave.acento(i), 0.25, 0.95) * vel0;
         const principal = midiDe(grados[0]);
         info.filasPorInst[clave] = (info.filasPorInst[clave] || 0) + filas.length;
 
